@@ -321,6 +321,7 @@ function toggleCard(desc) {
 
 function applySearch() {
   searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+  expandedCard = null;
   renderTab();
 }
 
@@ -376,11 +377,27 @@ function renderTab() {
 }
 
 function renderCards() {
-  var alerts = alertsForMonth(selMonth);
-  document.getElementById('sectionTitle').textContent = 'Productos activos en ' + MESES_F[selMonth-1] + ' · ' + alerts.length + ' artículos';
+  var alerts;
+  if (searchQuery !== '') {
+    // When searching: show ALL matching products across all months
+    alerts = allData
+      .filter(function(p){ return p.desc.toLowerCase().indexOf(searchQuery) >= 0; })
+      .filter(function(p){ return p.consistency >= minConsistency; })
+      .map(function(p){
+        var mq = p.monthly[selMonth-1];
+        var mp = p.total > 0 ? Math.round(mq/p.total*100) : 0;
+        return Object.assign({}, p, { monthQty:mq, monthPct:mp });
+      });
+  } else {
+    alerts = alertsForMonth(selMonth);
+  }
+  var title = searchQuery !== ''
+    ? 'Resultados para "' + searchQuery + '" · ' + alerts.length + ' artículos'
+    : 'Productos activos en ' + MESES_F[selMonth-1] + ' · ' + alerts.length + ' artículos';
+  document.getElementById('sectionTitle').textContent = title;
 
   if (alerts.length === 0) {
-    document.getElementById('cardsGrid').innerHTML = '<div class="empty">Sin movimientos históricos en este mes</div>';
+    document.getElementById('cardsGrid').innerHTML = '<div class="empty">Sin resultados' + (searchQuery ? ' para "' + searchQuery + '"' : ' en este mes') + '</div>';
     return;
   }
 
@@ -431,7 +448,10 @@ function renderCards() {
 }
 
 function renderTable() {
-  var rows = allData.map(function(p) {
+  var base = searchQuery !== ''
+    ? allData.filter(function(p){ return p.desc.toLowerCase().indexOf(searchQuery) >= 0; })
+    : allData;
+  var rows = base.map(function(p) {
     var mq = p.monthly[selMonth-1];
     var mp = p.total > 0 ? Math.round(mq/p.total*100) : 0;
     return Object.assign({}, p, { monthQty:mq, monthPct:mp });
